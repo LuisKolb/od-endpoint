@@ -129,4 +129,5 @@ dmypy.json
 .pyre/
 
 # custom ignores
-/uploads/*
+/static/uploads/*.*
+/static/uploads/output/*.*

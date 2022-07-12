@@ -13,8 +13,9 @@ curl http://url:port/api/detect -X POST -F "image=@testimg.jpg" -F "output=1"
 
 post an image URL to the endpoint
 ```
-curl http://url:port/api/detect -X POST -F "input=https://pbs.twimg.com/media/FXOm0HiWAAIrB_R?format=jpg" -F "output=1"
+curl http://url:port/api/detect -X POST -F "input=https://pbs.twimg.com/media/FXeZSe1UIAE44c0?format=jpg" -F "output=1"
 ```
+
 ### deployment
 
 #### package installation

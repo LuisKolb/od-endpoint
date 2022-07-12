@@ -22,11 +22,13 @@ from six import BytesIO
 from base64 import encodebytes
 import numpy as np
 import tempfile
+import requests
+import uuid
 
 #
 # flask setup
 #
-UPLOAD_FOLDER = './uploads'
+UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'jpg'}
 
 app = Flask(__name__)
@@ -62,7 +64,7 @@ def allowed_file(filename):
 print(f'[INFO] tensorflow version: {tf.__version__}')
 module_handle = 'https://tfhub.dev/google/openimages_v4/ssd/mobilenet_v2/1'
 print(f'[INFO] loading model from tfhub: {module_handle}')
-#detector = hub.load(module_handle).signatures['default']
+detector = hub.load(module_handle).signatures['default']
 print('[INFO] model loaded.')
 
 
@@ -75,24 +77,24 @@ def display_image(image):
     plt.imshow(image)
 
 def download_image(url):
-    response = urlopen(url)
-    image_data = response.read()
-    image_data = BytesIO(image_data)
-    return image_data
+    pil_image = Image.open(urlopen(url))
+    filename = str(uuid.uuid4()) + '.jpg'
+    pil_image.save(os.path.join(app.config['UPLOAD_FOLDER'], filename), format="JPEG", quality=90)
+    return filename
 
 # expects image_data returned by BytesIO
-def resize_image(image_data, new_width=256, new_height=256, display=False):
-    _, filename = tempfile.mkstemp(suffix=".jpg")
-    pil_image = Image.open(image_data)
+def resize_image(path, new_width=256, new_height=256, display=False):
+    #_, filename = tempfile.mkstemp(suffix=".jpg")
+    pil_image = Image.open(path)
     pil_image = ImageOps.fit(pil_image, (new_width, new_height), Image.ANTIALIAS)
     pil_image_rgb = pil_image.convert("RGB")
-    pil_image_rgb.save(filename, format="JPEG", quality=90)
-    print("Image downloaded to %s." % filename)
+    pil_image_rgb.save(path, format="JPEG", quality=90)
+    print(f'[INFO] Resized image saved to {path}.')
 
     if display:
         display_image(pil_image)
     
-    return filename
+    return path
 
 def save_annotated_image(image, path):
     plt.figure(figsize=(20, 15))
@@ -184,8 +186,8 @@ def load_img(path):
     img = tf.image.decode_jpeg(img, channels=3)
     return img
 
-def run_detector(detector, path, output_path=''):
-    img = load_img(path)
+def run_detector(detector, image_path, output_path=''):
+    img = load_img(image_path)
 
     converted_img = tf.image.convert_image_dtype(img, tf.float32)[
         tf.newaxis, ...]
@@ -215,22 +217,31 @@ def run_detector(detector, path, output_path=''):
 
     return output_dict
 
-def detection_loop(image_data, output):
+# params:
+# image_path    path of a saved (.jpg) image
+# output_path   optional, string, path to save the image to
+def detection_loop(filename, output = False):
 
-    file_path = resize_image(image_data, 640, 480)
+    image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    image_path = resize_image(image_path, 640, 480)
+
 
     if output:
-        save_path = file_path + '.output.jpg' # where results are saved
+        # where results are saved
+        output_path_jpg = os.path.join(app.config['UPLOAD_FOLDER'], 'output', filename + '.annotated.jpg')
+        output_path_json = os.path.join(app.config['UPLOAD_FOLDER'], 'output',  filename + '.annotated.json')
     else:
-        save_path = ''
+        output_path_jpg = ''
+        output_path_json = ''
 
-    res_dict = run_detector(detector, file_path, save_path)
+    results_dict = run_detector(detector, image_path, output_path_jpg)
 
-    # save the results dict for the image
-    with open(file_path + '.output.json', 'w', encoding='utf-8') as res_file:
-        json.dump(res_dict, res_file, ensure_ascii=False, indent=4)
+    if output_path_json:
+        # save the results dict for the image
+        with open(output_path_json, 'w', encoding='utf-8') as file:
+            json.dump(results_dict, file, ensure_ascii=False, indent=4)
 
-    return res_dict
+    return results_dict
 
 
 #
@@ -256,26 +267,28 @@ def detect():
     # Note that files will only contain data if the request method was POST, PUT or PATCH and the <form> that posted to the request had enctype="multipart/form-data".
     # It will be empty otherwise.
 
-    if request.files.get('image'):
+    if request.files.get('input'):
         # endpoint will be called like curl http://url:port/api/detect -X POST -F "image=@foo.jpg" [-F "output=1"]
-        img = request.files["image"].read()
-        image_data = BytesIO(img)
+        file = request.files['input']
+        print(file.filename)
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
     elif request.values.get('input'):
         # endpoint will be called like curl http://url:port/api/detect -X POST -F "input=url" [-F "output=1"]
         url = request.values.get('input')
-        print(url)
         if not url:
             return {'data': f'no image found at the specified url:{url}\n'}, 400
-        image_data = download_image(url)
+        filename = str(uuid.uuid4()) + '.jpg'
+        Image.open(urlopen(url)).save(os.path.join(app.config['UPLOAD_FOLDER'], filename), format="JPEG", quality=100)
         
-    # (is a flag) if not empty annotated images should be saved to local storage
+    # (is a flag) if not empty, json and annotated images will be saved to local storage
     if request.values.get('output'):
         output = True
     else:
         output = False
-
-    res_dict = detection_loop(image_data, output)
+    
+    res_dict = detection_loop(filename, output)
 
     if res_dict['annotated_image_path']:
         # add the image to the response as a base64 string, in ascii encoding, to be decoded by the caller
@@ -288,27 +301,31 @@ def detect():
 # ui templates rendering
 #
 @app.route('/', methods=['GET', 'POST'])
-def upload_file():
+def homepage():
     if request.method == 'POST':
         # check if the post request has the file part
-        if 'file' not in request.files:
+        if 'image' not in request.files:
             flash('No file part')
             return redirect(request.url)
-        file = request.files['file']
+        file = request.files['image']
         if file.filename == '':
             flash('No selected file')
             return redirect(request.url)
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            print(filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            return redirect(url_for('uploaded_file', filename=filename))
+            res_dict = detection_loop(filename, True)
+
+            return redirect(url_for('uploaded_file', filename= f'{filename}.annotated.jpg'))
     return render_template("index.html")
     
-@app.route('/uploads/<filename>')
+@app.route('/uploads/output/<filename>')
 def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'],
-                               filename)
+    full_path_img = os.path.join('uploads', 'output', filename)
+    full_path_img = url_for('static', filename=full_path_img)
+    #full_path_json = os.path.join(app.config['UPLOAD_FOLDER'], 'output', f'{filename}.annotated.json')
+    return render_template('display_img.html', img=full_path_img, results_dict={'hello':'world'})
+    #return send_from_directory(os.path.join(app.config['UPLOAD_FOLDER'], 'output'), filename)
 
 if __name__ == '__main__':
     os.system('tailwindcss -i ./static/src/main.css -o ./static/dist/main.css --minify')

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>upload an image to run detection on</h1>
+<form method='post' enctype='multipart/form-data'>
+    <input type='file' name='file' class="">
+    <input type='submit' value='Upload' class="">
+</form>
+
+{% endblock content %}

@@ -1,4 +1,6 @@
-from flask import Flask, request, Response, jsonify
+from flask import Flask, request, Response, jsonify, render_template, flash, redirect, url_for, send_from_directory
+from flask_assets import Bundle, Environment
+from werkzeug.utils import secure_filename
 
 import tensorflow as tf
 import tensorflow_hub as hub
@@ -11,6 +13,7 @@ from PIL import ImageDraw
 from PIL import ImageFont
 from PIL import ImageOps
 
+import os
 import time
 from datetime import datetime
 import json
@@ -23,18 +26,43 @@ import tempfile
 #
 # flask setup
 #
+UPLOAD_FOLDER = './uploads'
+ALLOWED_EXTENSIONS = {'jpg'}
+
 app = Flask(__name__)
+assets = Environment(app)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+#app.config['TEMPLATES_AUTO_RELOAD'] = True
+css = Bundle("src/main.css", output="dist/main.css")
+
+assets.register("css", css)
+css.build()
+
+from os import path, walk
+
+extra_dirs = ['templates',]
+extra_files = extra_dirs[:]
+for extra_dir in extra_dirs:
+    for dirname, dirs, files in walk(extra_dir):
+        for filename in files:
+            filename = path.join(dirname, filename)
+            if path.isfile(filename):
+                extra_files.append(filename)
+
 print('[INFO] Started Flask App.')
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 #
 # tensorflow setup
 #
-
 print(f'[INFO] tensorflow version: {tf.__version__}')
 module_handle = 'https://tfhub.dev/google/openimages_v4/ssd/mobilenet_v2/1'
 print(f'[INFO] loading model from tfhub: {module_handle}')
-detector = hub.load(module_handle).signatures['default']
+#detector = hub.load(module_handle).signatures['default']
 print('[INFO] model loaded.')
 
 
@@ -151,7 +179,6 @@ def draw_boxes(image, boxes, class_names, scores, max_boxes=10, min_score=0.1):
 #
 # function definitions for object detection
 #
-
 def load_img(path):
     img = tf.io.read_file(path)
     img = tf.image.decode_jpeg(img, channels=3)
@@ -257,5 +284,32 @@ def detect():
     return jsonify(res_dict), 200  # return results and 200 OK
 
 
+#
+# ui templates rendering
+#
+@app.route('/', methods=['GET', 'POST'])
+def upload_file():
+    if request.method == 'POST':
+        # check if the post request has the file part
+        if 'file' not in request.files:
+            flash('No file part')
+            return redirect(request.url)
+        file = request.files['file']
+        if file.filename == '':
+            flash('No selected file')
+            return redirect(request.url)
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            print(filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            return redirect(url_for('uploaded_file', filename=filename))
+    return render_template("index.html")
+    
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'],
+                               filename)
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    os.system('tailwindcss -i ./static/src/main.css -o ./static/dist/main.css --minify')
+    app.run(debug=True, host='0.0.0.0', extra_files=extra_files)

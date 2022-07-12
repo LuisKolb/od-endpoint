@@ -4,7 +4,7 @@
 ----
 ## commands
 
-### usage
+### usaging the API
 
 post an image to the endpoint
 ```
@@ -17,9 +17,33 @@ curl http://url:port/api/detect -X POST -F "input=https://pbs.twimg.com/media/FX
 ```
 ### deployment
 
-install and activate the venv  
+#### package installation
+
+create a new venv  
 ```
 python -m venv venv
+```
+
+activate the venv  
+```
 source venv/bin/activate
+```
+
+install packages 
+```
 pip install -r requirements.txt
+```
+
+### generate the css files and create a minimal bundle
+
+this is run automatically before running the flask app
+```
+tailwindcss -i ./static/src/main.css -o ./static/dist/main.css --minify
+```
+
+
+#### run the server
+
+```
+python app.py
 ```

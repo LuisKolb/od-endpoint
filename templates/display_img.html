@@ -1,45 +1,50 @@
 {% extends "base.html" %}
 
 {% block content %}
-<button
-    class="bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white py-2 px-4 border border-blue-500 hover:border-transparent rounded">
-    <a href="{{ url_for('landing') }}">Home</a>
-</button>
-<img src="{{ img }}" alt="annotated image" class="rounded">
-<br>
-
-<!--
-    <table>
-    <th>
-        {% for value in data['detection_class_entities'] %}
-        <tr>
-            <td>{{ value }}</td>
-        </tr>
-        {% endfor %}
-    </th>
-    <br>
-        {% for score in data['detection_scores'] %}
-        <tr>
-            <td>{{ score }}</td>
-        </tr>
-        {% endfor %}
-</table>
--->
-
-
-<div class="grid grid-cols-2">
-    <div class="grid grid-cols-1">
-        {% for value in data['detection_class_entities'] %}
-        <div>{{ value }}</div>
-        {% endfor %}
+<div class="container flex flex-col justify-items-center px-4 mx-auto max-w-5xl">
+    <div class="flex flex-row justify-start items-center">
+        <button
+            class="bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white py-2 px-4 border border-blue-500 hover:border-transparent rounded m-4">
+            <a href="{{ url_for('landing') }}">Home</a>
+        </button>
+        <div class="ml-4">
+            Annotated Image for
+            <span class="font-bold">
+                {{ name }}
+            </span>
+        </div>
     </div>
-    <div class="grid grid-cols-1">
-        {% for score in data['detection_scores'] %}
-        <div>{{ score }}</div>
-        {% endfor %}
+
+    <img src="{{ img }}" alt="annotated image" class="border-2 border-solid border-black">
+    <br>
+
+    <table class="table-auto border-collapse my-auto border-solid border-2">
+        <thead>
+            <tr class="bg-gray-400">
+                <th class="text-left p-2">
+                    detection_class_entities
+                </th>
+                <th class="text-left p-2">
+                    detection_scores
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for i in range(0,data['objects_found']) %}
+            <tr>
+                <td class="p-1 border-solid border-2">
+                    {{data['detection_class_entities'][i]}}
+                </td>
+                <td class="p-1 border-solid border-2">
+                    {{data['detection_scores'][i]}}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+
+    </table>
+    <div class="py-4">
+
     </div>
 </div>
-
-
-
 {% endblock content %}

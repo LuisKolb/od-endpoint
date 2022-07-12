@@ -17,7 +17,7 @@ import os
 import time
 from datetime import datetime
 import json
-from six.moves.urllib.request import urlopen
+from urllib.request import urlopen
 from six import BytesIO
 from base64 import encodebytes
 import numpy as np
@@ -62,10 +62,20 @@ def allowed_file(filename):
 # tensorflow setup
 #
 print(f'[INFO] tensorflow version: {tf.__version__}')
-module_handle = 'https://tfhub.dev/google/openimages_v4/ssd/mobilenet_v2/1'
-print(f'[INFO] loading model from tfhub: {module_handle}')
-#detector = hub.load(module_handle).signatures['default']
-print('[INFO] model loaded.')
+models_dict = {
+    'none': '',
+    'mobilenet_v2': 'https://tfhub.dev/google/openimages_v4/ssd/mobilenet_v2/1',
+    'inception_resnet_v2': 'https://tfhub.dev/google/faster_rcnn/openimages_v4/inception_resnet_v2/1',
+}
+model_name = 'mobilenet_v2'
+model_handle = models_dict[model_name]
+
+if model_handle:
+    print(f'[INFO] loading model from tfhub: {model_handle}')
+    detector = hub.load(model_handle).signatures['default']
+    print(f'[INFO] model loaded.')
+else:
+    detector = None
 
 
 #
@@ -213,6 +223,7 @@ def run_detector(detector, image_path, output_path=''):
         'detection_scores': result["detection_scores"].tolist(),
         'inference_time': end_time-start_time,
         'annotated_image_path': output_path,
+        'model_used': model_handle,
     }
 
     return output_dict
@@ -264,6 +275,8 @@ def test():
 # routing http POST requests
 @app.route('/api/detect', methods=['POST'])
 def detect():
+    if not detector:
+        return 'no model loaded, try again later.\n', 500
     # Note that files will only contain data if the request method was POST, PUT or PATCH and the <form> that posted to the request had enctype="multipart/form-data".
     # It will be empty otherwise.
 
@@ -314,10 +327,10 @@ def landing():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            res_dict = detection_loop(filename, True)
+            detection_loop(filename, True)
 
             return redirect(url_for('uploaded_file', filename= f'{filename}'))
-    return render_template("index.html")
+    return render_template("index.html", model_name=model_name, model_handle=model_handle)
     
 @app.route('/uploads/output/<filename>.annotated.jpg')
 def uploaded_file(filename):
@@ -326,11 +339,11 @@ def uploaded_file(filename):
 
     #full_path_json = os.path.join('uploads', 'output', filename + '.annotated.json')
     #json_url = url_for('static', filename=full_path_json)
-    
+
     full_path_json = os.path.join(app.config['UPLOAD_FOLDER'], 'output', f'{filename}.annotated.json')
     with open(full_path_json) as json_file:
         data = json.load(json_file)
-        return render_template('display_img.html', img=jpg_url, data=data)
+        return render_template('display_img.html', img=jpg_url, data=data, name=filename)
     #return send_from_directory(os.path.join(app.config['UPLOAD_FOLDER'], 'output'), filename)
 
 if __name__ == '__main__':

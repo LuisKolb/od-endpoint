@@ -1,18 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+
+<head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     {% assets 'css' %}
-      <link rel="stylesheet" href="{{ ASSET_URL }}">
+    <link rel="stylesheet" href="{{ ASSET_URL }}">
     {% endassets %}
 
     <title>Detectatron 3000 ™️</title>
-  </head>
-  <body class="bg-grey-100">
-    {% block content %}
-    {% endblock content %}
-  </body>
+</head>
+
+<body class="flex flex-col h-screen">
+    <div class="flex-grow">
+        {% block content %}
+        {% endblock content %}
+    </div>
+
+
+    <div class="flex flex-row justify-center bg-gray-600 text-white font-mono py-4">
+        <div class="mx-4">
+            made with ❤️ by luis
+        </div>
+        <div class="mx-4">
+            <a href="https://luiskolb.at" class="underline text-blue-300">https://luiskolb.at</a>
+        </div>
+    </div>
+</body>
+
 </html>

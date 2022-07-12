@@ -1,8 +1,45 @@
 {% extends "base.html" %}
 
 {% block content %}
+<button
+    class="bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white py-2 px-4 border border-blue-500 hover:border-transparent rounded">
+    <a href="{{ url_for('landing') }}">Home</a>
+</button>
 <img src="{{ img }}" alt="annotated image" class="rounded">
 <br>
-{{ full_path_json }}
+
+<!--
+    <table>
+    <th>
+        {% for value in data['detection_class_entities'] %}
+        <tr>
+            <td>{{ value }}</td>
+        </tr>
+        {% endfor %}
+    </th>
+    <br>
+        {% for score in data['detection_scores'] %}
+        <tr>
+            <td>{{ score }}</td>
+        </tr>
+        {% endfor %}
+</table>
+-->
+
+
+<div class="grid grid-cols-2">
+    <div class="grid grid-cols-1">
+        {% for value in data['detection_class_entities'] %}
+        <div>{{ value }}</div>
+        {% endfor %}
+    </div>
+    <div class="grid grid-cols-1">
+        {% for score in data['detection_scores'] %}
+        <div>{{ score }}</div>
+        {% endfor %}
+    </div>
+</div>
+
+
 
 {% endblock content %}

@@ -64,7 +64,7 @@ def allowed_file(filename):
 print(f'[INFO] tensorflow version: {tf.__version__}')
 module_handle = 'https://tfhub.dev/google/openimages_v4/ssd/mobilenet_v2/1'
 print(f'[INFO] loading model from tfhub: {module_handle}')
-detector = hub.load(module_handle).signatures['default']
+#detector = hub.load(module_handle).signatures['default']
 print('[INFO] model loaded.')
 
 
@@ -301,7 +301,7 @@ def detect():
 # ui templates rendering
 #
 @app.route('/', methods=['GET', 'POST'])
-def homepage():
+def landing():
     if request.method == 'POST':
         # check if the post request has the file part
         if 'image' not in request.files:
@@ -316,15 +316,21 @@ def homepage():
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             res_dict = detection_loop(filename, True)
 
-            return redirect(url_for('uploaded_file', filename= f'{filename}.annotated.jpg'))
+            return redirect(url_for('uploaded_file', filename= f'{filename}'))
     return render_template("index.html")
     
-@app.route('/uploads/output/<filename>')
+@app.route('/uploads/output/<filename>.annotated.jpg')
 def uploaded_file(filename):
-    full_path_img = os.path.join('uploads', 'output', filename)
-    full_path_img = url_for('static', filename=full_path_img)
-    #full_path_json = os.path.join(app.config['UPLOAD_FOLDER'], 'output', f'{filename}.annotated.json')
-    return render_template('display_img.html', img=full_path_img, results_dict={'hello':'world'})
+    full_path_jpg = os.path.join('uploads', 'output', filename + '.annotated.jpg')
+    jpg_url = url_for('static', filename=full_path_jpg)
+
+    #full_path_json = os.path.join('uploads', 'output', filename + '.annotated.json')
+    #json_url = url_for('static', filename=full_path_json)
+    
+    full_path_json = os.path.join(app.config['UPLOAD_FOLDER'], 'output', f'{filename}.annotated.json')
+    with open(full_path_json) as json_file:
+        data = json.load(json_file)
+        return render_template('display_img.html', img=jpg_url, data=data)
     #return send_from_directory(os.path.join(app.config['UPLOAD_FOLDER'], 'output'), filename)
 
 if __name__ == '__main__':

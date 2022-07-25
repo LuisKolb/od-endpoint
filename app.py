@@ -24,6 +24,7 @@ import numpy as np
 import tempfile
 import requests
 import uuid
+import base64
 
 #
 # flask setup
@@ -117,8 +118,8 @@ def save_annotated_image(image, path):
 def get_response_image(image_path):
     pil_img = Image.open(image_path, mode='r') # reads the PIL image
     byte_arr = BytesIO()
-    pil_img.save(byte_arr, format='PNG') # convert the PIL image to byte array
-    encoded_img = encodebytes(byte_arr.getvalue()).decode('ascii') # encode as base64
+    pil_img.save(byte_arr, format='JPEG') # convert the PIL image to byte array
+    encoded_img = base64.b64encode(byte_arr.getvalue())
     return encoded_img
 
 def draw_bounding_box_on_image(image, ymin, xmin, ymax, xmax, color, font, thickness=4, display_str_list=()):

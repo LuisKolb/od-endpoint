@@ -119,7 +119,7 @@ def get_response_image(image_path):
     pil_img = Image.open(image_path, mode='r') # reads the PIL image
     byte_arr = BytesIO()
     pil_img.save(byte_arr, format='JPEG') # convert the PIL image to byte array
-    encoded_img = base64.b64encode(byte_arr.getvalue())
+    encoded_img = base64.b64encode(byte_arr.getvalue()).hex()
     return encoded_img
 
 def draw_bounding_box_on_image(image, ymin, xmin, ymax, xmax, color, font, thickness=4, display_str_list=()):
